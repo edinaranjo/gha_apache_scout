@@ -1,4 +1,4 @@
-name: Build and Scan with Docker Scout
+name: Build and Scan with Docker Scout tool
 
 on:
   workflow_dispatch:
