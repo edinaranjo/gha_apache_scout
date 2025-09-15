@@ -3,10 +3,11 @@ name: CI básico
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:   # 👉 Esto permite lanzarlo manualmente
 
 jobs:
   saludo:
     runs-on: ubuntu-latest
     steps:
       - name: Mostrar mensaje
-        run: echo "✅ El flujo se ejecutó correctamente en la rama main"
+        run: echo "✅ El flujo se ejecutó correctamente en la rama main o manualmente"
