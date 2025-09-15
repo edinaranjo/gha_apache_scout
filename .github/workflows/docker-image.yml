@@ -49,7 +49,7 @@ jobs:
           echo "🔍 Ejecutando análisis de vulnerabilidades con Docker Scout..."
           docker scout cves ${{ env.IMAGE_NAME }}:sha-${{ github.sha }} --output json 2>&1 | tee scout-report.json
           echo "==== Resumen de vulnerabilidades detectadas ===="
-          cat scout-report.jsonCreate docker-image.yml
+          cat scout-report.json
 
       # 7. Subir reporte como artefacto en GitHub Actions
       - name: Upload Scout JSON report
