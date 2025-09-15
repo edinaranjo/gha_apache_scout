@@ -1,59 +1,53 @@
-name: Build and Analyze Docker Image with Docker Scout
+name: Build and Scan with Docker Scout
 
 on:
-  push:
-    branches: [ "main" ]
-
-env:
-  IMAGE_NAME: efnaranjo/apache-scout
-  SHA: ${{ github.sha }}
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Tag de la imagen a construir"
+        required: true
+        default: "latest"
 
 jobs:
-  build-and-analyze:
+  build-and-scan:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Checkout del código
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # 2️⃣ Instalar Docker Scout (CLI plugin)
+      - name: Install Docker Scout
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/docker/scout-cli/main/install.sh | sh
+          mkdir -p ~/.docker/cli-plugins
+          mv ./bin/docker-scout ~/.docker/cli-plugins/
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      # 3️⃣ Configurar variables de entorno
+      - name: Set image name
+        run: echo "IMAGE_NAME=myapp" >> $GITHUB_ENV
 
-      - name: Build image and load to runner
-        id: build
+      # 4️⃣ Construir la imagen (NO push a Docker Hub)
+      - name: Build Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
-          push: true
+          push: false
           load: true
-          tags: ${{ env.IMAGE_NAME }}:sha-${{ env.SHA }}
+          tags: ${{ env.IMAGE_NAME }}:${{ github.event.inputs.image_tag }}
 
-      - name: Install Docker Scout
+      # 5️⃣ Escanear vulnerabilidades con Docker Scout
+      - name: Docker Scout analyze
         run: |
-          mkdir -p ~/.docker/cli-plugins
-          curl -sSfL https://raw.githubusercontent.com/docker/scout-cli/main/install.sh | sh
-          sudo cp ~/.docker/cli-plugins/docker-scout /usr/local/bin/
-          docker-scout version
+          docker scout cves ${{ env.IMAGE_NAME }}:${{ github.event.inputs.image_tag }} \
+            --format json \
+            --output ./scout-report.json
 
-
-      # 6. Escanear la imagen con Docker Scout
-      - name: Scan image with Docker Scout
-        run: |
-          echo "🔍 Ejecutando análisis de vulnerabilidades con Docker Scout..."
-          docker scout cves ${{ env.IMAGE_NAME }}:sha-${{ github.sha }} --output json 2>&1 | tee scout-report.json
-          echo "==== Resumen de vulnerabilidades detectadas ===="
-          cat scout-report.json
-
-      # 7. Subir reporte como artefacto en GitHub Actions
-      - name: Upload Scout JSON report
+      # 6️⃣ Subir reporte como artefacto
+      - name: Upload Scout report
         uses: actions/upload-artifact@v4
         with:
-          name: docker-scout-report
-          path: scout-report.json
+          name: scout-report
+          path: ./scout-report.json
